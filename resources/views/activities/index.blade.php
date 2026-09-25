@@ -2,6 +2,8 @@
 
 @section('content')
 <h1>Daftar Kegiatan</h1>
+<p><a href="{{ route('activities.create') }}">+ Tambah Kegiatan Baru</a></p>
+
 @forelse ($activities as $activity)
 <article class="card">
     <h2>
