@@ -1,5 +1,3 @@
-@csrf
-
 <div class="form-group">
     <label for="title">Judul Kegiatan</label>
     <input type="text" id="title" name="title" value="{{ old('title', $activity->title) }}">

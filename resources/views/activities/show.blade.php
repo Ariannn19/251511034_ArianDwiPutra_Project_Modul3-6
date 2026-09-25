@@ -6,6 +6,10 @@
 <p><strong>Tanggal:</strong> {{ $activity->activity_date->format('d M Y') }}</p>
 <p><strong>Kategori:</strong> {{ $activity->category }}</p>
 <p><strong>Status:</strong> {{ $activity->status }}</p>
+<p><strong>Status:</strong> {{ $activity->status }}</p>
+@if ($activity->completed_at)
+<p><strong>Waktu Selesai:</strong> {{ $activity->completed_at->format('d M Y H:i') }}</p>
+@endif
 <p><strong>Deskripsi:</strong> {{ $activity->description ?? 'Tidak ada deskripsi.' }}</p>
 
 <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">

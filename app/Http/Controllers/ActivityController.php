@@ -2,14 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InvalidStatusTransitionException;
 use App\Http\Requests\StoreActivityRequest;
 use App\Http\Requests\UpdateActivityRequest;
 use App\Models\Activity;
+use App\Services\ActivityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class ActivityController extends Controller
 {
+    public function __construct(
+        protected ActivityService $activityService
+    ) {}
+
     public function index(): View
     {
         $activities = Activity::query()
@@ -28,7 +34,7 @@ class ActivityController extends Controller
 
     public function store(StoreActivityRequest $request): RedirectResponse
     {
-        Activity::query()->create($request->validated());
+        $this->activityService->createActivity($request->validated());
 
         return redirect()
             ->route('activities.index')
@@ -47,16 +53,22 @@ class ActivityController extends Controller
 
     public function update(UpdateActivityRequest $request, Activity $activity): RedirectResponse
     {
-        $activity->update($request->validated());
+        try {
+            $this->activityService->updateActivity($activity, $request->validated());
 
-        return redirect()
-            ->route('activities.show', $activity)
-            ->with('success', 'Kegiatan berhasil diperbarui.');
+            return redirect()
+                ->route('activities.show', $activity)
+                ->with('success', 'Kegiatan berhasil diperbarui.');
+        } catch (InvalidStatusTransitionException $e) {
+            return back()
+                ->withInput()
+                ->withErrors(['status' => $e->getMessage()]);
+        }
     }
 
     public function destroy(Activity $activity): RedirectResponse
     {
-        $activity->delete();
+        $this->activityService->deleteActivity($activity);
 
         return redirect()
             ->route('activities.index')

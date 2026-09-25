@@ -1,10 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<p><a href="{{ route('activities.index') }}">&larr; Kembali</a></p>
-<h1>Tambah Kegiatan Baru</h1>
+<p><a href="{{ route('activities.show', $activity) }}">&larr; Batal</a></p>
+<h1>Edit Kegiatan</h1>
 
-<form action="{{ route('activities.store') }}" method="POST">
-    @include('activities._form', ['submitButtonText' => 'Simpan Kegiatan'])
+<form action="{{ route('activities.update', $activity) }}" method="POST">
+    @csrf
+    @method('PUT')
+    @include('activities._form', ['submitButtonText' => 'Perbarui Kegiatan'])
 </form>
 @endsection

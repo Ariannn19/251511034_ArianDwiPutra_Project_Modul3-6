@@ -5,6 +5,7 @@
 <h1>Tambah Kegiatan Baru</h1>
 
 <form action="{{ route('activities.store') }}" method="POST">
+    @csrf
     @include('activities._form', ['submitButtonText' => 'Simpan Kegiatan'])
 </form>
 @endsection
