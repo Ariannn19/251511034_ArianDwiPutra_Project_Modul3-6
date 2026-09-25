@@ -8,8 +8,8 @@ use App\Http\Requests\UpdateActivityRequest;
 use App\Models\Activity;
 use App\Services\ActivityService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class ActivityController extends Controller
 {
@@ -35,7 +35,7 @@ class ActivityController extends Controller
     public function create(): View
     {
         return view('activities.create', [
-            'activity' => new Activity(),
+            'activity' => new Activity,
         ]);
     }
 
@@ -81,8 +81,4 @@ class ActivityController extends Controller
             ->route('activities.index')
             ->with('success', 'Kegiatan berhasil dihapus.');
     }
-
-    
 }
-
-

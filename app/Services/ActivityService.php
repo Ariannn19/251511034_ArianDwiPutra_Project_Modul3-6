@@ -7,6 +7,12 @@ use App\Models\Activity;
 
 class ActivityService
 {
+    private const ALLOWED_TRANSITIONS = [
+        'Planned' => ['Planned', 'Ongoing'],
+        'Ongoing' => ['Ongoing', 'Done'],
+        'Done' => ['Done'],
+    ];
+
     public function createActivity(array $data): Activity
     {
         if (($data['status'] ?? 'Planned') === 'Done') {
@@ -21,20 +27,7 @@ class ActivityService
         $currentStatus = $activity->status;
         $newStatus = $data['status'] ?? $currentStatus;
 
-        // 1. Status Done tidak boleh ke Planned ataupun Ongoing
-        if ($currentStatus === 'Done' && in_array($newStatus, ['Planned', 'Ongoing'])) {
-            throw new InvalidStatusTransitionException("Status yang sudah Selesai (Done) tidak boleh diubah kembali ke {$newStatus}.");
-        }
-
-        // 2. Status Planned harus melalui Ongoing sebelum Done
-        if ($currentStatus === 'Planned' && $newStatus === 'Done') {
-            throw new InvalidStatusTransitionException('Status Rencana (Planned) harus melalui Sedang Berjalan (Ongoing) sebelum Selesai (Done).');
-        }
-
-        // 3. Status Ongoing tidak boleh mundur kembali ke Planned
-        if ($currentStatus === 'Ongoing' && $newStatus === 'Planned') {
-            throw new InvalidStatusTransitionException('Status Sedang Berjalan (Ongoing) tidak boleh diubah mundur ke Rencana (Planned).');
-        }
+        $this->ensureValidTransition($currentStatus, $newStatus);
 
         if ($newStatus === 'Done' && $currentStatus !== 'Done') {
             $data['completed_at'] = now();
@@ -50,5 +43,14 @@ class ActivityService
     public function deleteActivity(Activity $activity): void
     {
         $activity->delete();
+    }
+
+    private function ensureValidTransition(string $current, string $next): void
+    {
+        $allowed = self::ALLOWED_TRANSITIONS[$current] ?? [];
+
+        if (! in_array($next, $allowed, true)) {
+            throw new InvalidStatusTransitionException("Perubahan status dari {$current} ke {$next} tidak diperbolehkan.");
+        }
     }
 }

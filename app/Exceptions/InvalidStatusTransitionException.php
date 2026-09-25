@@ -4,6 +4,4 @@ namespace App\Exceptions;
 
 use Exception;
 
-class InvalidStatusTransitionException extends Exception
-{
-}
+class InvalidStatusTransitionException extends Exception {}
