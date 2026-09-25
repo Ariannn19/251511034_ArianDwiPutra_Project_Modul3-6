@@ -26,7 +26,7 @@ class ActivityService
             throw new InvalidStatusTransitionException("Status yang sudah Selesai (Done) tidak boleh diubah kembali ke {$newStatus}.");
         }
 
-        // 2. Status Planned harus melalui Ongoing sebelum Done 
+        // 2. Status Planned harus melalui Ongoing sebelum Done
         if ($currentStatus === 'Planned' && $newStatus === 'Done') {
             throw new InvalidStatusTransitionException('Status Rencana (Planned) harus melalui Sedang Berjalan (Ongoing) sebelum Selesai (Done).');
         }
