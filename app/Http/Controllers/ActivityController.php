@@ -9,6 +9,7 @@ use App\Models\Activity;
 use App\Services\ActivityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Illuminate\Http\Request;
 
 class ActivityController extends Controller
 {
@@ -16,13 +17,19 @@ class ActivityController extends Controller
         protected ActivityService $activityService
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $validStatuses = ['Planned', 'Ongoing', 'Done'];
+        $selectedStatus = $request->query('status');
+
         $activities = Activity::query()
+            ->when(in_array($selectedStatus, $validStatuses, true), function ($query) use ($selectedStatus) {
+                $query->where('status', $selectedStatus);
+            })
             ->orderBy('activity_date')
             ->get();
 
-        return view('activities.index', compact('activities'));
+        return view('activities.index', compact('activities', 'selectedStatus'));
     }
 
     public function create(): View
@@ -74,4 +81,8 @@ class ActivityController extends Controller
             ->route('activities.index')
             ->with('success', 'Kegiatan berhasil dihapus.');
     }
+
+    
 }
+
+

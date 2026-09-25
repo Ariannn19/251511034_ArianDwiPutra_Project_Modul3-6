@@ -3,6 +3,18 @@
 @section('content')
 <h1>Daftar Kegiatan</h1>
 <p><a href="{{ route('activities.create') }}">+ Tambah Kegiatan Baru</a></p>
+<form method="GET" action="{{ route('activities.index') }}" style="margin-bottom: 1.5rem;">
+    <label for="status">Filter Status:</label>
+    <select name="status" id="status" onchange="this.form.submit()">
+        <option value="">Semua</option>
+        @foreach (['Planned', 'Ongoing', 'Done'] as $statusOption)
+        <option value="{{ $statusOption }}" {{ request('status') === $statusOption ? 'selected' : '' }}>
+            {{ $statusOption }}
+        </option>
+        @endforeach
+    </select>
+    <noscript><button type="submit">Filter</button></noscript>
+</form>
 
 @forelse ($activities as $activity)
 <article class="card">
