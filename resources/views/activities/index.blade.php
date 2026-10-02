@@ -2,7 +2,10 @@
 
 @section('content')
 <h1>Daftar Kegiatan</h1>
-<p><a href="{{ route('activities.create') }}">+ Tambah Kegiatan Baru</a></p>
+<p>
+    <a href="{{ route('activities.create') }}">+ Tambah Kegiatan Baru</a>
+    <a href="{{ route('activities.trash') }}" style="color: #dc2626;">Lihat Trash</a>
+</p>
 
 <!-- Form Search, Filter Kategori, Filter Status, dan Sort -->
 <form method="GET" action="{{ route('activities.index') }}" style="margin-bottom: 1.5rem; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
