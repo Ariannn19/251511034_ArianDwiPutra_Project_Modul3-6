@@ -2,20 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InvalidStatusTransitionException;
+use App\Http\Requests\StoreActivityRequest;
 use App\Models\Activity;
 use App\Models\Category;
-use App\Http\Requests\StoreActivityRequest;
 use App\Services\ActivityService;
-use App\Exceptions\InvalidStatusTransitionException;
-use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class ActivityController extends Controller
 {
+
+    public function __construct(
+        protected ActivityService $activityService
+    ) {}
+
     public function index(Request $request): View
     {
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::all();
 
         $activities = Activity::with('category')
             ->filter($request->only(['search', 'category_id', 'status', 'sort']))
@@ -27,21 +35,21 @@ class ActivityController extends Controller
 
     public function create(): View
     {
-        $activity = new Activity();
         $categories = Category::all();
-        return view('activities.create', compact('activity', 'categories'));
+        return view('activities.create', compact('categories'));
     }
 
-    public function store(StoreActivityRequest $request, ActivityService $service): RedirectResponse
+    public function store(StoreActivityRequest $request): RedirectResponse
     {
         $data = $request->validated();
 
-        $category = Category::find($data['category_id']);
-        $data['category'] = $category ? $category->name : 'Umum';
+        if ($request->hasFile('poster')) {
+            $data['poster_path'] = $request->file('poster')->store('posters', 'public');
+        }
 
-        $service->create($data);
+        $this->activityService->create($data);
 
-        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil ditambahkan!');
+        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil dibuat!');
     }
 
     public function show(Activity $activity): View
@@ -56,15 +64,20 @@ class ActivityController extends Controller
         return view('activities.edit', compact('activity', 'categories'));
     }
 
-    public function update(StoreActivityRequest $request, Activity $activity, ActivityService $service): RedirectResponse
+    public function update(StoreActivityRequest $request, Activity $activity): RedirectResponse
     {
         $data = $request->validated();
 
-        $category = Category::find($data['category_id']);
-        $data['category'] = $category ? $category->name : 'Umum';
+        if ($request->hasFile('poster')) {
+            // Hapus file lama jika ada
+            if ($activity->poster_path && Storage::disk('public')->exists($activity->poster_path)) {
+                Storage::disk('public')->delete($activity->poster_path);
+            }
+            $data['poster_path'] = $request->file('poster')->store('posters', 'public');
+        }
 
         try {
-            $service->update($activity, $data);
+            $this->activityService->update($activity, $data);
         } catch (InvalidStatusTransitionException $e) {
             return back()->withInput()->withErrors(['status' => $e->getMessage()]);
         }
@@ -74,25 +87,43 @@ class ActivityController extends Controller
 
     public function destroy(Activity $activity): RedirectResponse
     {
-        $activity->delete(); // Otomatis menjalankan soft delete karena trait SoftDeletes aktif
-        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil dihapus (soft delete)!');
+        $activity->delete();
+
+        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil dihapus (Soft Delete)!');
     }
 
     public function trash(): View
     {
-        $trashedActivities = Activity::onlyTrashed()
-            ->with('category')
-            ->latest('deleted_at')
-            ->paginate(10);
-
+        $trashedActivities = Activity::onlyTrashed()->with('category')->latest()->get();
         return view('activities.trash', compact('trashedActivities'));
     }
 
     public function restore(int $id): RedirectResponse
     {
-        $activity = Activity::withTrashed()->findOrFail($id);
+        $activity = Activity::onlyTrashed()->findOrFail($id);
         $activity->restore();
 
         return redirect()->route('activities.trash')->with('success', 'Kegiatan berhasil dipulihkan!');
+    }
+
+    public function register(Request $request, Activity $activity): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name'  => 'required|string|max:100',
+            'email' => 'required|email|max:100',
+        ]);
+
+        try {
+            $this->activityService->registerParticipant($activity, $validated);
+        } catch (ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+        } catch (QueryException $e) {
+            if (str_contains($e->getMessage(), 'UNIQUE constraint failed') || str_contains($e->getMessage(), 'Duplicate entry')) {
+                return back()->withInput()->withErrors(['email' => 'Email ini sudah terdaftar pada kegiatan tersebut.']);
+            }
+            throw $e;
+        }
+
+        return back()->with('success', 'Pendaftaran berhasil! Kuota peserta telah diperbarui.');
     }
 }
