@@ -2,83 +2,66 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\InvalidStatusTransitionException;
-use App\Http\Requests\StoreActivityRequest;
-use App\Http\Requests\UpdateActivityRequest;
 use App\Models\Activity;
-use App\Services\ActivityService;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use App\Models\Category;
+use App\Http\Requests\StoreActivityRequest;
 use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class ActivityController extends Controller
 {
-    public function __construct(
-        protected ActivityService $activityService
-    ) {}
-
-    public function index(Request $request): View
+    public function index(): View
     {
-        $validStatuses = ['Planned', 'Ongoing', 'Done'];
-        $selectedStatus = $request->query('status');
-
-        $activities = Activity::query()
-            ->when(in_array($selectedStatus, $validStatuses, true), function ($query) use ($selectedStatus) {
-                $query->where('status', $selectedStatus);
-            })
-            ->orderBy('activity_date')
-            ->get();
-
-        return view('activities.index', compact('activities', 'selectedStatus'));
+        $activities = Activity::with('category')->latest()->paginate(10);
+        return view('activities.index', compact('activities'));
     }
 
     public function create(): View
     {
-        return view('activities.create', [
-            'activity' => new Activity,
-        ]);
+        $activity = new Activity();
+        $categories = Category::all();
+        return view('activities.create', compact('activity', 'categories'));
     }
 
     public function store(StoreActivityRequest $request): RedirectResponse
     {
-        $this->activityService->createActivity($request->validated());
+        $data = $request->validated();
 
-        return redirect()
-            ->route('activities.index')
-            ->with('success', 'Kegiatan berhasil ditambahkan.');
+        $category = Category::find($data['category_id']);
+        $data['category'] = $category ? $category->name : 'Umum';
+
+        Activity::create($data);
+
+        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil ditambahkan!');
     }
 
     public function show(Activity $activity): View
     {
+        $activity->load('category');
         return view('activities.show', compact('activity'));
     }
 
     public function edit(Activity $activity): View
     {
-        return view('activities.edit', compact('activity'));
+        $categories = Category::all();
+        return view('activities.edit', compact('activity', 'categories'));
     }
 
-    public function update(UpdateActivityRequest $request, Activity $activity): RedirectResponse
+    public function update(StoreActivityRequest $request, Activity $activity): RedirectResponse
     {
-        try {
-            $this->activityService->updateActivity($activity, $request->validated());
+        $data = $request->validated();
 
-            return redirect()
-                ->route('activities.show', $activity)
-                ->with('success', 'Kegiatan berhasil diperbarui.');
-        } catch (InvalidStatusTransitionException $e) {
-            return back()
-                ->withInput()
-                ->withErrors(['status' => $e->getMessage()]);
-        }
+        $category = Category::find($data['category_id']);
+        $data['category'] = $category ? $category->name : 'Umum';
+
+        $activity->update($data);
+
+        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil diperbarui!');
     }
 
     public function destroy(Activity $activity): RedirectResponse
     {
-        $this->activityService->deleteActivity($activity);
-
-        return redirect()
-            ->route('activities.index')
-            ->with('success', 'Kegiatan berhasil dihapus.');
+        $activity->delete();
+        return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil dihapus!');
     }
 }

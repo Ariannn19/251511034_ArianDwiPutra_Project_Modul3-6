@@ -4,22 +4,28 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Activity extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'category_id',
+        'category',
+        'code',
         'title',
         'description',
         'activity_date',
-        'category',
         'status',
-        'completed_at',
     ];
 
     protected $casts = [
-        'activity_date' => 'date',
-        'completed_at' => 'datetime',
+        'activity_date' => 'datetime',
     ];
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
 }
