@@ -2,55 +2,56 @@
 
 namespace App\Services;
 
-use App\Exceptions\InvalidStatusTransitionException;
 use App\Models\Activity;
+use App\Exceptions\InvalidStatusTransitionException;
 
 class ActivityService
 {
+
     private const ALLOWED_TRANSITIONS = [
-        'Planned' => ['Planned', 'Ongoing'],
-        'Ongoing' => ['Ongoing', 'Done'],
-        'Done' => ['Done'],
+        'draft'     => ['draft', 'published', 'cancelled'],
+        'published' => ['published', 'completed', 'cancelled'],
+        'completed' => ['completed'],
+        'cancelled' => ['cancelled'],
     ];
 
-    public function createActivity(array $data): Activity
+    /**
+     * Membuat kegiatan baru.
+     */
+    public function create(array $data): Activity
     {
-        if (($data['status'] ?? 'Planned') === 'Done') {
-            $data['completed_at'] = now();
-        }
-
-        return Activity::query()->create($data);
+        return Activity::create($data);
     }
 
-    public function updateActivity(Activity $activity, array $data): Activity
+    /**
+     * Memperbarui kegiatan dengan validasi transisi status dan kelengkapan data.
+     */
+    public function update(Activity $activity, array $data): Activity
     {
         $currentStatus = $activity->status;
-        $newStatus = $data['status'] ?? $currentStatus;
+        $nextStatus = $data['status'] ?? $currentStatus;
 
-        $this->ensureValidTransition($currentStatus, $newStatus);
+        // 1. Validasi alur transisi status
+        $this->ensureValidTransition($currentStatus, $nextStatus);
 
-        if ($newStatus === 'Done' && $currentStatus !== 'Done') {
-            $data['completed_at'] = now();
-        } elseif ($newStatus !== 'Done') {
-            $data['completed_at'] = null;
+        if ($nextStatus === 'published') {
+            $description = $data['description'] ?? $activity->description;
+            if (empty(trim((string) $description))) {
+                throw new InvalidStatusTransitionException('Kegiatan tidak dapat dipublikasikan karena deskripsi belum diisi.');
+            }
         }
 
         $activity->update($data);
 
-        return $activity;
-    }
-
-    public function deleteActivity(Activity $activity): void
-    {
-        $activity->delete();
+        return $activity->refresh();
     }
 
     private function ensureValidTransition(string $current, string $next): void
     {
         $allowed = self::ALLOWED_TRANSITIONS[$current] ?? [];
 
-        if (! in_array($next, $allowed, true)) {
-            throw new InvalidStatusTransitionException("Perubahan status dari {$current} ke {$next} tidak diperbolehkan.");
+        if (!in_array($next, $allowed, true)) {
+            throw new InvalidStatusTransitionException("Perubahan status dari '{$current}' ke '{$next}' tidak diizinkan.");
         }
     }
 }

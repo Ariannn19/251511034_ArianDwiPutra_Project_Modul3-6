@@ -5,15 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\Category;
 use App\Http\Requests\StoreActivityRequest;
+use App\Services\ActivityService;
+use App\Exceptions\InvalidStatusTransitionException;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 
 class ActivityController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $activities = Activity::with('category')->latest()->paginate(10);
-        return view('activities.index', compact('activities'));
+        $categories = Category::orderBy('name')->get();
+
+        $activities = Activity::with('category')
+            ->filter($request->only(['search', 'category_id', 'status', 'sort']))
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('activities.index', compact('activities', 'categories'));
     }
 
     public function create(): View
@@ -23,14 +32,14 @@ class ActivityController extends Controller
         return view('activities.create', compact('activity', 'categories'));
     }
 
-    public function store(StoreActivityRequest $request): RedirectResponse
+    public function store(StoreActivityRequest $request, ActivityService $service): RedirectResponse
     {
         $data = $request->validated();
 
         $category = Category::find($data['category_id']);
         $data['category'] = $category ? $category->name : 'Umum';
 
-        Activity::create($data);
+        $service->create($data);
 
         return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil ditambahkan!');
     }
@@ -47,14 +56,18 @@ class ActivityController extends Controller
         return view('activities.edit', compact('activity', 'categories'));
     }
 
-    public function update(StoreActivityRequest $request, Activity $activity): RedirectResponse
+    public function update(StoreActivityRequest $request, Activity $activity, ActivityService $service): RedirectResponse
     {
         $data = $request->validated();
 
         $category = Category::find($data['category_id']);
         $data['category'] = $category ? $category->name : 'Umum';
 
-        $activity->update($data);
+        try {
+            $service->update($activity, $data);
+        } catch (InvalidStatusTransitionException $e) {
+            return back()->withInput()->withErrors(['status' => $e->getMessage()]);
+        }
 
         return redirect()->route('activities.index')->with('success', 'Kegiatan berhasil diperbarui!');
     }
